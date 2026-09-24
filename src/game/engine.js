@@ -218,19 +218,26 @@ export function createGame(canvas, cb) {
     draw()
   }
 
-  const down = (e) => {
-    if (!running) return
-    if (['Space', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault()
-    if ((e.code === 'Space' || e.code === 'ArrowUp') && s.y === G) { s.vy = -820; s.y -= 1; sfx('jump') }
-    else if (e.code === 'ArrowDown') keys.down = true
-    else if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && s.dashCd <= 0) { s.dash = 0.25; s.dashCd = 3; sfx('dash') }
-    else if (e.code === 'KeyX' && s.shootCd <= 0) {
+  // Satu pintu untuk keyboard dan tombol layar: act('jump' | 'slide' | 'dash' | 'shoot', tekan?)
+  function act(name, on) {
+    if (name === 'slide') { keys.down = on; return }
+    if (!running || !on) return
+    if (name === 'jump' && s.y === G) { s.vy = -820; s.y -= 1; sfx('jump') }
+    else if (name === 'dash' && s.dashCd <= 0) { s.dash = 0.25; s.dashCd = 3; sfx('dash') }
+    else if (name === 'shoot' && s.shootCd <= 0) {
       s.bullets.push({ x: PX + 16, y: s.y - (s.slide ? 15 : 40) })
       s.shootCd = 0.4
       sfx('shoot')
     }
   }
-  const up = (e) => { if (e.code === 'ArrowDown') keys.down = false }
+  const MAP = { Space: 'jump', ArrowUp: 'jump', ArrowDown: 'slide', ShiftLeft: 'dash', ShiftRight: 'dash', KeyX: 'shoot' }
+  const down = (e) => {
+    const a = MAP[e.code]
+    if (!a) return
+    if (running && ['Space', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault()
+    act(a, true)
+  }
+  const up = (e) => { if (MAP[e.code] === 'slide') act('slide', false) }
   window.addEventListener('keydown', down)
   window.addEventListener('keyup', up)
 
@@ -239,6 +246,7 @@ export function createGame(canvas, cb) {
 
   return {
     best: () => bestScore,
+    act,
     start() { reset(); keys.down = false; running = true; last = performance.now(); emit() },
     pause() { running = false },
     resume() { running = true; last = performance.now() },
